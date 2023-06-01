@@ -1,0 +1,86 @@
+version: "3.4"
+
+networks:
+  saleor:
+    external: false
+
+services:
+  api:
+    container_name: saleor-api
+    image: ghcr.io/saleor/saleor:3.13.11
+    ports:
+      # The Port of the API
+      - 8000:8000
+    restart: unless-stopped
+    networks:
+      - saleor
+    stdin_open: true
+    tty: true
+    depends_on:
+      - db
+      - redis
+    volumes:
+      # Path of the Media directory on Host machine
+      - /host/dir/path/media:/app/media
+    env_file:
+      - private_key.env
+      - key_passphrase.env
+    environment:
+      # The URL of the Dashboard
+      - DASHBOARD_URL=https://demo.saleor.io/
+      # Allowed Hosts of the Dashboard
+      - ALLOWED_HOSTS=localhost,api,demo.saleor.io
+      # URL of PostgreSQL Database
+      - DATABASE_URL=postgres://saleor:saleor@db/saleor
+      # URL of Redis Cache Database
+      - REDIS_URL=redis://redis/0
+      # Default Email address for all outgoing email
+      - DEFAULT_FROM_EMAIL=saleor@demo.saleor.io
+      # URL for sending email using SMTP service (Please read: https://docs.saleor.io/docs/3.x/setup/configuration#email_url)
+      - EMAIL_URL=smtp://
+      # Enable Playground for Production Environment?
+      - PLAYGROUND_ENABLED=False
+      # Add the trusted origins to the GraphQL allow list
+      - ALLOWED_GRAPHQL_ORIGINS=demo.saleor.io
+      # Django Secret Key
+      - SECRET_KEY="Put_A-SECRET#Key.Here!"
+
+  dashboard:
+    container_name: saleor-dashboard
+    image: ghcr.io/saleor/saleor-dashboard:3.12.7
+    environment:
+      # The URL of the Saleor API
+      - API_URL=https://demo.saleor.io/graphql/
+    ports:
+      # The Port of the dashboard
+      - 80:80
+    restart: unless-stopped
+
+  # PostgreSQL Database
+  db:
+    container_name: saleor-db
+    image: library/postgres:13-alpine
+    ports:
+      - 15432:5432
+    restart: unless-stopped
+    networks:
+      - saleor
+    volumes:
+      # Path of the directory to store the saleor database data file on Host machine
+      - /host/dir/path/database/saleor:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=saleor
+      - POSTGRES_PASSWORD=saleor
+
+  # Redis Cache Database
+  redis:
+    container_name: saleor-redis
+    image: library/redis:5.0-alpine
+    ports:
+      - 16379:6379
+    restart: unless-stopped
+    networks:
+      - saleor
+    volumes:
+      # Path of the directory to store the saleor cache data file on Host machine
+      - /host/dir/path/redis/saleor:/data
